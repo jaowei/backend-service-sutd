@@ -1,45 +1,51 @@
-const { Pool } = require('pg')
+const Item = require('../models/item')
 
-let pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-})
+const ITEMS = []
 
-const db = {
-  ...require('./items')(pool),
-  ...require('./users')(pool),
+const db = {}
+
+db.insertItem = (item) => {
+  const newItem = new Item({
+    ...item,
+    id: ITEMS.length + 1
+  })
+  ITEMS.push(newItem)
+  return newItem
 }
 
-db.initialise = async () => {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS Users (
-      id SERIAL PRIMARY KEY,
-      username VARCHAR(100) NOT NULL,
-      password_hash VARCHAR(100) NOT NULL
-    )
-  `)
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS Items (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      quantity INTEGER NOT NULL,
-      uid INTEGER NOT NULL,
-      FOREIGN KEY (uid) REFERENCES Users(id) ON DELETE CASCADE
-    )
-  `)
+db.findAllItems = () => {
+  return [...ITEMS]
 }
 
-db.clearItemsTables = async () => {
-  await pool.query('DELETE FROM Items')
-  await pool.query('ALTER SEQUENCE items_id_seq RESTART')
+db.findItem = (id) => {
+  id = Number(id)
+  return ITEMS.find(item => item.id === id)
 }
 
-db.clearUsersTables = async () => {
-  await pool.query('DELETE FROM Users')
-  await pool.query('ALTER SEQUENCE users_id_seq RESTART')
+db.updateItem = (id, item) => {
+  id = Number(id)
+  const idx = ITEMS.findIndex(item => item.id === id)
+  if (idx === -1) {
+    return null
+  } else {
+    const updatedItem = new Item({
+      ...item,
+      id
+    })
+    ITEMS.splice(idx, 1, updatedItem)
+    return updatedItem
+  }
 }
 
-db.end = async () => {
-  await pool.end()
+db.deleteItem = (id) => {
+  id = Number(id)
+  const idx = ITEMS.findIndex(item => item.id === id)
+  if (idx === -1) {
+    return false
+  } else {
+    ITEMS.splice(idx, 1)
+    return true
+  }
 }
 
 module.exports = db

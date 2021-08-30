@@ -1,44 +1,49 @@
-const express = require('express')
-const swaggerUi = require('swagger-ui-express')
-const swaggerJsdoc = require('swagger-jsdoc')
+const router = require('express').Router()
+const db = require('../db')
+const Item = require('../models/item')
 
-module.exports = (authMiddleware, authService, db) => {
-  const router = express.Router()
+router.get('/', (req, res, next) => {
+  res.send('Hello world!')
+})
 
-  /**
-   * @openapi
-   * /:
-   *  get:
-   *    description: Default route
-   *    responses:
-   *      200:
-   *        description: OK
-   */
-  router.get('/', (req, res, next) => {
-    res.send('Hello world!')
-  })
+router.post('/items', (req, res, next) => {
+  const { name, quantity } = req.body
+  const newItem = new Item({ name, quantity })
+  const item = db.insertItem(newItem)
+  res.status(201).send(item)
+})
 
-  // Auth
-  router.use('/', require('./auth')(authService))
+router.get('/items', (req, res, next) => {
+  const items = db.findAllItems()
+  res.send(items)
+})
 
-  // Swagger Docs
-  const options = {
-    definition: {
-      openapi: '3.0.0',
-      info: {
-        title: 'Backend Service',
-        version: '1.0.0',
-      },
-    },
-    apis: ['./src/routes/*.js'],
+router.get('/items/:id', (req, res, next) => {
+  const id = req.params.id
+  const item = db.findItem(id)
+  if (item) {
+    res.send(item)
+  } else {
+    res.status(400).send(`Item id ${id} not found`)
   }
-  const swaggerSpec = swaggerJsdoc(options)
-  router.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
+})
 
-  // All routes from this point will use the auth middleware
-  router.use(authMiddleware)
+router.put('/items/:id', (req, res, next) => {
+  const id = req.params.id
+  const { name, quantity } = req.body
+  const updatedItem = new Item({ name, quantity })
+  const item = db.updateItem(id, updatedItem)
+  res.send(item)
+})
 
-  router.use('/items', require('./items')(db))
+router.delete('/items/:id', (req, res, next) => {
+  const id = req.params.id
+  const success = db.deleteItem(id)
+  if (success) {
+    res.send(`Deleted item ${id} successfully`)
+  } else {
+    res.status(400).send(`Item id ${id} not found`)
+  }
+})
 
-  return router
-}
+module.exports = router
