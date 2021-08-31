@@ -1,51 +1,35 @@
-const Item = require('../models/item')
+const { Pool } = require('pg')
 
-const ITEMS = []
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+})
 
-const db = {}
-
-db.insertItem = (item) => {
-  const newItem = new Item({
-    ...item,
-    id: ITEMS.length + 1
-  })
-  ITEMS.push(newItem)
-  return newItem
+const db = {
+  ...require('./items')(pool),
+  ...require('./users')(pool),
 }
 
-db.findAllItems = () => {
-  return [...ITEMS]
+db.initialise = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS Users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(100) NOT NULL,
+      password_hash VARCHAR(100) NOT NULL
+    )
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS Items (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      quantity INTEGER NOT NULL,
+      uid INTEGER NOT NULL,
+      FOREIGN KEY (uid) REFERENCES Users(id)
+    )
+  `)
 }
 
-db.findItem = (id) => {
-  id = Number(id)
-  return ITEMS.find(item => item.id === id)
-}
-
-db.updateItem = (id, item) => {
-  id = Number(id)
-  const idx = ITEMS.findIndex(item => item.id === id)
-  if (idx === -1) {
-    return null
-  } else {
-    const updatedItem = new Item({
-      ...item,
-      id
-    })
-    ITEMS.splice(idx, 1, updatedItem)
-    return updatedItem
-  }
-}
-
-db.deleteItem = (id) => {
-  id = Number(id)
-  const idx = ITEMS.findIndex(item => item.id === id)
-  if (idx === -1) {
-    return false
-  } else {
-    ITEMS.splice(idx, 1)
-    return true
-  }
+db.end = async () => {
+  await pool.end()
 }
 
 module.exports = db
